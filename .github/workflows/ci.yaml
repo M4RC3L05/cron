@@ -3,7 +3,7 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  oak:
+  ci:
     runs-on: ubuntu-latest
     steps:
       - name: clone repository
