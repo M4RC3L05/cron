@@ -1,4 +1,4 @@
-import { setTimeout } from "node:timers/promises";
+import { delay } from "@std/async/delay";
 import cronParser from "cron-parser";
 
 export class Cron {
@@ -18,11 +18,11 @@ export class Cron {
     this.#tickerTimeout = tickerTimeout ?? this.#tickerTimeout;
   }
 
-  get working() {
+  get working(): boolean {
     return this.#working;
   }
 
-  start() {
+  start(): AsyncGenerator<AbortSignal, void> {
     if (this.#working) return this.#worker;
 
     this.#working = true;
@@ -41,13 +41,13 @@ export class Cron {
     await this.#worker.return();
   }
 
-  nextAt() {
+  nextAt(): string {
     this.#when.reset(Math.floor(Date.now() / 1000) * 1000);
 
     return this.#when.next().toISOString();
   }
 
-  checkTime(at = Date.now()) {
+  checkTime(at: number = Date.now()): boolean {
     return this.#checkTime(at);
   }
 
@@ -56,18 +56,18 @@ export class Cron {
     this.#dateContainer.setMilliseconds(0);
 
     return (
-      // @ts-ignore
+      // @ts-ignore: ts stuff
       this.#when.fields.second.includes(this.#dateContainer.getUTCSeconds()) &&
-      // @ts-ignore
+      // @ts-ignore: ts stuff
       this.#when.fields.minute.includes(this.#dateContainer.getUTCMinutes()) &&
-      // @ts-ignore
+      // @ts-ignore: ts stuff
       this.#when.fields.hour.includes(this.#dateContainer.getUTCHours()) &&
-      // @ts-ignore
+      // @ts-ignore: ts stuff
       this.#when.fields.dayOfMonth.includes(this.#dateContainer.getUTCDate()) &&
-      // @ts-ignore
+      // @ts-ignore: ts stuff
       // We must add 1 to the month value as it starts from 0 and the cron starts from 1.
       this.#when.fields.month.includes(this.#dateContainer.getUTCMonth() + 1) &&
-      // @ts-ignore
+      // @ts-ignore: ts stuff
       this.#when.fields.dayOfWeek.includes(this.#dateContainer.getUTCDay())
     );
   }
@@ -77,7 +77,7 @@ export class Cron {
 
     while (true) {
       try {
-        await setTimeout(this.#tickerTimeout, undefined, {
+        await delay(this.#tickerTimeout, {
           signal: this.#abortController.signal,
         });
 
