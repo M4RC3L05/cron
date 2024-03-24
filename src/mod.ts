@@ -1,5 +1,4 @@
-import { delay } from "@std/async/delay";
-import cronParser from "cron-parser";
+import { cronParser, delay } from "./deps.ts";
 
 export class Cron {
   #when: cronParser.CronExpression;

@@ -1,7 +1,12 @@
-import { assertEquals, fail } from "@std/assert";
-import { Spy, spy } from "@std/testing/mock";
-import { describe, it } from "@std/testing/bdd";
-import { FakeTime } from "@std/testing/time";
+import {
+  assertEquals,
+  describe,
+  fail,
+  FakeTime,
+  it,
+  Spy,
+  spy,
+} from "./test_deps.ts";
 import { Cron } from "./mod.ts";
 
 describe("Cron", () => {
