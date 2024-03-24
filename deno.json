@@ -11,7 +11,8 @@
       "deno.json"
     ],
     "exclude": [
-      "./src/*_test.ts"
+      "./src/*_test.ts",
+      "./src/test_deps.ts"
     ]
   }
 }
