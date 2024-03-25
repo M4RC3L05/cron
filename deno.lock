@@ -1,0 +1,27 @@
+{
+  "version": "3",
+  "packages": {
+    "specifiers": {
+      "jsr:@std/async@^0.220.1": "jsr:@std/async@0.220.1",
+      "npm:cron-parser@4.9.0": "npm:cron-parser@4.9.0"
+    },
+    "jsr": {
+      "@std/async@0.220.1": {
+        "integrity": "61f0e9c53bf81f516aa7f54843f307eb5f05c5cf9902575a636ead162b5dfafe"
+      }
+    },
+    "npm": {
+      "cron-parser@4.9.0": {
+        "integrity": "sha512-p0SaNjrHOnQeR8/VnfGbmg9te2kfyYSQ7Sc/j/6DtPL3JQvKxmjO9TSjNFpujqV3vEYYBvNNvXSxzyksBWAx1Q==",
+        "dependencies": {
+          "luxon": "luxon@3.4.4"
+        }
+      },
+      "luxon@3.4.4": {
+        "integrity": "sha512-zobTr7akeGHnv7eBOXcRgMeCP6+uyYsczwmeRCauvpvaAltgNyTbLH/+VaEAPUeWBT+1GuNmz4wC/6jtQzbbVA==",
+        "dependencies": {}
+      }
+    }
+  },
+  "remote": {}
+}
