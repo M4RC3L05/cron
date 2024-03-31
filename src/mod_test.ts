@@ -81,6 +81,25 @@ describe("Cron", () => {
 
       time.restore();
     });
+
+    it("should handle DLS", async () => {
+      const time = new FakeTime("2016-03-26 09:00:00");
+
+      const cron = new Cron("0 0 9 * * *", "UTC", 0);
+
+      assertEquals(cron.checkTime(), true); // before DLS
+      await time.tickAsync(1000 * 60 * 60 * 23);
+      assertEquals(cron.checkTime(), true); // after DLS +1
+
+      await time.tickAsync(
+        new Date("2016-10-29 09:00:00").getTime() - Date.now(),
+      );
+      assertEquals(cron.checkTime(), true); // before DLS +1
+      await time.tickAsync(1000 * 60 * 60 * 25);
+      assertEquals(cron.checkTime(), true); // after DLS
+
+      time.restore();
+    });
   });
 
   describe("work", () => {

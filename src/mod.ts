@@ -46,8 +46,8 @@ export class Cron {
     return this.#when.next().toISOString();
   }
 
-  checkTime(at: number = Date.now()): boolean {
-    return this.#checkTime(at);
+  checkTime(at?: number): boolean {
+    return this.#checkTime(at ?? Date.now());
   }
 
   #checkTime(at: number) {
@@ -56,18 +56,18 @@ export class Cron {
 
     return (
       // @ts-ignore: ts stuff
-      this.#when.fields.second.includes(this.#dateContainer.getUTCSeconds()) &&
+      this.#when.fields.second.includes(this.#dateContainer.getSeconds()) &&
       // @ts-ignore: ts stuff
-      this.#when.fields.minute.includes(this.#dateContainer.getUTCMinutes()) &&
+      this.#when.fields.minute.includes(this.#dateContainer.getMinutes()) &&
       // @ts-ignore: ts stuff
-      this.#when.fields.hour.includes(this.#dateContainer.getUTCHours()) &&
+      this.#when.fields.hour.includes(this.#dateContainer.getHours()) &&
       // @ts-ignore: ts stuff
-      this.#when.fields.dayOfMonth.includes(this.#dateContainer.getUTCDate()) &&
+      this.#when.fields.dayOfMonth.includes(this.#dateContainer.getDate()) &&
       // @ts-ignore: ts stuff
       // We must add 1 to the month value as it starts from 0 and the cron starts from 1.
-      this.#when.fields.month.includes(this.#dateContainer.getUTCMonth() + 1) &&
+      this.#when.fields.month.includes(this.#dateContainer.getMonth() + 1) &&
       // @ts-ignore: ts stuff
-      this.#when.fields.dayOfWeek.includes(this.#dateContainer.getUTCDay())
+      this.#when.fields.dayOfWeek.includes(this.#dateContainer.getDay())
     );
   }
 
