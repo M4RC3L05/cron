@@ -1,6 +1,6 @@
 {
   "name": "@m4rc3l05/cron",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "exports": "./src/mod.ts",
   "tasks": {
     "deps:lock": "deno cache --lock=deno.lock --lock-write src/*.ts",
