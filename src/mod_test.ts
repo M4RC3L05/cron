@@ -4,7 +4,7 @@ import {
   fail,
   FakeTime,
   it,
-  Spy,
+  type Spy,
   spy,
 } from "./test_deps.ts";
 import { Cron } from "./mod.ts";
