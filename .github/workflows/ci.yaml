@@ -21,4 +21,7 @@ jobs:
         run: deno lint
 
       - name: run tests
+        env:
+          # Test DLS
+          TZ: "Europe/Athens"
         run: deno test
