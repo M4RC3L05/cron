@@ -1,6 +1,6 @@
 {
   "name": "@m4rc3l05/cron",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "exports": "./src/mod.ts",
   "tasks": {
     "test": "TZ=UTC deno test",
