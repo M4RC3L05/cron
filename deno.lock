@@ -2,12 +2,15 @@
   "version": "3",
   "packages": {
     "specifiers": {
+      "jsr:@std/assert@0.220.1": "jsr:@std/assert@0.220.1",
       "jsr:@std/assert@^0.220.1": "jsr:@std/assert@0.220.1",
+      "jsr:@std/async@0.220.1": "jsr:@std/async@0.220.1",
       "jsr:@std/async@^0.220.1": "jsr:@std/async@0.220.1",
       "jsr:@std/data-structures@^0.220.1": "jsr:@std/data-structures@0.220.1",
       "jsr:@std/fmt@^0.220.1": "jsr:@std/fmt@0.220.1",
-      "jsr:@std/testing@^0.220.1": "jsr:@std/testing@0.220.1",
-      "npm:cron-parser@4.9.0": "npm:cron-parser@4.9.0"
+      "jsr:@std/testing@0.220.1": "jsr:@std/testing@0.220.1",
+      "npm:cron-parser@4.9.0": "npm:cron-parser@4.9.0",
+      "npm:dayjs@1.11.10": "npm:dayjs@1.11.10"
     },
     "jsr": {
       "@std/assert@0.220.1": {
@@ -40,6 +43,10 @@
         "dependencies": {
           "luxon": "luxon@3.4.4"
         }
+      },
+      "dayjs@1.11.10": {
+        "integrity": "sha512-vjAczensTgRcqDERK0SR2XMwsF/tSvnvlv6VcF2GIhg6Sx4yOIt/irsr1RDJsKiIyBzJDpCoXiWWq28MqH2cnQ==",
+        "dependencies": {}
       },
       "luxon@3.4.4": {
         "integrity": "sha512-zobTr7akeGHnv7eBOXcRgMeCP6+uyYsczwmeRCauvpvaAltgNyTbLH/+VaEAPUeWBT+1GuNmz4wC/6jtQzbbVA==",

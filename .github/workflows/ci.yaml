@@ -22,6 +22,5 @@ jobs:
 
       - name: run tests
         env:
-          # Test DLS
-          TZ: "Europe/Athens"
+          TZ: "UTC"
         run: deno test

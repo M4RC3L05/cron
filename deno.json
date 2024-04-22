@@ -3,6 +3,7 @@
   "version": "0.1.4",
   "exports": "./src/mod.ts",
   "tasks": {
+    "test": "TZ=UTC deno test",
     "deps:lock": "deno cache --lock=deno.lock --lock-write src/*.ts",
     "deps": "deno cache --reload --lock=deno.lock src/*.ts"
   },

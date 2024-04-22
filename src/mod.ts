@@ -1,4 +1,7 @@
-import { cronParser, delay } from "./deps.ts";
+import { cronParser, dayjs, delay, timezone, utc } from "./deps.ts";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export class Cron {
   #when: cronParser.CronExpression;
@@ -6,15 +9,18 @@ export class Cron {
   #working: boolean;
   #worker!: AsyncGenerator<AbortSignal, void>;
   #lastProcessAt?: number;
-  #dateContainer = new Date();
   #tickerTimeout = 500;
+  #timezone = "UTC";
 
   constructor(when: string, timezone?: string, tickerTimeout?: number) {
-    this.#when = cronParser.parseExpression(when, { tz: timezone });
+    this.#timezone = timezone ?? this.#timezone;
+    this.#when = cronParser.parseExpression(when, { tz: this.#timezone });
     this.#working = false;
 
     this.#abortController = new AbortController();
     this.#tickerTimeout = tickerTimeout ?? this.#tickerTimeout;
+
+    dayjs.tz.setDefault(this.#timezone);
   }
 
   get working(): boolean {
@@ -41,38 +47,37 @@ export class Cron {
   }
 
   nextAt(): string {
-    this.#when.reset(Math.floor(Date.now() / 1000) * 1000);
+    this.#when.reset(dayjs().tz().set("milliseconds", 0).toDate());
 
-    return this.#when.next().toISOString();
+    return dayjs.utc(this.#when.next().toISOString()).tz().format();
   }
 
   checkTime(at?: number): boolean {
-    return this.#checkTime(at ?? Date.now());
+    return this.#checkTime(at ?? dayjs().tz().unix() * 1000);
   }
 
   #checkTime(at: number) {
-    this.#dateContainer.setTime(at);
-    this.#dateContainer.setMilliseconds(0);
+    const now = dayjs(at).tz().set("milliseconds", 0);
 
     return (
       // @ts-ignore: ts stuff
-      this.#when.fields.second.includes(this.#dateContainer.getSeconds()) &&
+      this.#when.fields.second.includes(now.second()) &&
       // @ts-ignore: ts stuff
-      this.#when.fields.minute.includes(this.#dateContainer.getMinutes()) &&
+      this.#when.fields.minute.includes(now.minute()) &&
       // @ts-ignore: ts stuff
-      this.#when.fields.hour.includes(this.#dateContainer.getHours()) &&
+      this.#when.fields.hour.includes(now.hour()) &&
       // @ts-ignore: ts stuff
-      this.#when.fields.dayOfMonth.includes(this.#dateContainer.getDate()) &&
+      this.#when.fields.dayOfMonth.includes(now.date()) &&
       // @ts-ignore: ts stuff
       // We must add 1 to the month value as it starts from 0 and the cron starts from 1.
-      this.#when.fields.month.includes(this.#dateContainer.getMonth() + 1) &&
+      this.#when.fields.month.includes(now.month() + 1) &&
       // @ts-ignore: ts stuff
-      this.#when.fields.dayOfWeek.includes(this.#dateContainer.getDay())
+      this.#when.fields.dayOfWeek.includes(now.day())
     );
   }
 
   async *#ticker() {
-    yield Math.floor(Date.now() / 1000);
+    yield dayjs().tz().valueOf();
 
     while (true) {
       try {
@@ -80,7 +85,7 @@ export class Cron {
           signal: this.#abortController.signal,
         });
 
-        yield Math.floor(Date.now() / 1000);
+        yield dayjs().tz().valueOf();
       } catch {
         return;
       }
@@ -89,11 +94,13 @@ export class Cron {
 
   async *#work() {
     for await (const at of this.#ticker()) {
-      if (
-        this.#checkTime(at * 1000) &&
-        (!this.#lastProcessAt || at !== this.#lastProcessAt)
-      ) {
-        this.#lastProcessAt = at;
+      const seconds = Math.floor(at / 1000);
+      const isTime = this.#checkTime(seconds * 1000);
+      const notMatchesLastTime = !this.#lastProcessAt ||
+        seconds !== this.#lastProcessAt;
+
+      if (isTime && notMatchesLastTime) {
+        this.#lastProcessAt = seconds;
 
         yield this.#abortController.signal;
       }
