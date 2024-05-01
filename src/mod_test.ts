@@ -4,31 +4,30 @@ import {
   fail,
   FakeTime,
   it,
-  type Spy,
   spy,
 } from "./test_deps.ts";
 import { Cron } from "./mod.ts";
 
 describe("Cron", () => {
   describe("constructor()", () => {
+    it("should create a cron", () => {
+      assertEquals(new Cron(() => {}, { when: "* * * * * *" }).working, false);
+    });
+
     it("should throw an error if cron expression is invalid", () => {
       try {
-        new Cron("* * * * * * * *");
+        new Cron(() => {}, { when: "* * * * * * * *" });
 
         fail("It should have thrown an error");
       } catch (error) {
         assertEquals(error.message, "Invalid cron expression");
       }
     });
-
-    it("should create a cron", () => {
-      assertEquals(new Cron("* * * * * *").working, false);
-    });
   });
 
   describe("start()", () => {
     it("should start the cron", async () => {
-      const cron = new Cron("* * * * * *");
+      const cron = new Cron(() => {}, { when: "* * * * * *" });
       cron.start();
       assertEquals(cron.working, true);
       await cron.stop();
@@ -37,7 +36,7 @@ describe("Cron", () => {
 
   describe("stop()", () => {
     it("should stop the cron", async () => {
-      const cron = new Cron("* * * * * *");
+      const cron = new Cron(() => {}, { when: "* * * * * *" });
       cron.start();
       assertEquals(cron.working, true);
       await cron.stop();
@@ -48,7 +47,11 @@ describe("Cron", () => {
   describe("checkTime()", () => {
     it("should return true/false indicating if a given time matches the cron expression", async () => {
       const time = new FakeTime(0);
-      const cron = new Cron("0 1 * * * *", "UTC", 0);
+      const cron = new Cron(() => {}, {
+        when: "0 1 * * * *",
+        timezone: "UTC",
+        tickerTimeout: 0,
+      });
 
       assertEquals(cron.checkTime(), false);
       await time.tickAsync(1000 * 59); // +59s
@@ -67,7 +70,11 @@ describe("Cron", () => {
 
     it("should match first month", async () => {
       const time = new FakeTime(0);
-      const cron = new Cron("0 1 * * * *", "UTC", 0);
+      const cron = new Cron(() => {}, {
+        when: "0 1 * * * *",
+        timezone: "UTC",
+        tickerTimeout: 0,
+      });
 
       assertEquals(cron.checkTime(1000 * 60), true);
 
@@ -78,8 +85,11 @@ describe("Cron", () => {
 
     it("should match the last month", async () => {
       const time = new FakeTime(1000 * 60 * 60 * 24 * 360);
-
-      const cron = new Cron("0 1 * * * *", "UTC", 0);
+      const cron = new Cron(() => {}, {
+        when: "0 1 * * * *",
+        timezone: "UTC",
+        tickerTimeout: 0,
+      });
 
       assertEquals(cron.checkTime(Date.now() + 1000 * 60), true);
 
@@ -91,7 +101,11 @@ describe("Cron", () => {
     it("should handle diference between system time and specified timezone", async () => {
       const time = new FakeTime("2024-01-10T11:00:00.000+02:00");
 
-      const cron = new Cron("0 0 9 * * *", "Europe/Lisbon", 0);
+      const cron = new Cron(() => {}, {
+        when: "0 0 9 * * *",
+        timezone: "Europe/Lisbon",
+        tickerTimeout: 0,
+      });
 
       assertEquals(cron.checkTime(), true);
 
@@ -103,7 +117,11 @@ describe("Cron", () => {
     it("should handle DLS", async () => {
       const time = new FakeTime("2024-03-30T09:00:00.000+02:00");
 
-      const cron = new Cron("0 0 9 * * *", "Europe/Athens", 0);
+      const cron = new Cron(() => {}, {
+        when: "0 0 9 * * *",
+        timezone: "Europe/Athens",
+        tickerTimeout: 0,
+      });
 
       assertEquals(cron.checkTime(), true); // before DLS
       await time.tickAsync(1000 * 60 * 60 * 23);
@@ -124,7 +142,11 @@ describe("Cron", () => {
     it("should handle DLS with diference between system time and specified timezone", async () => {
       const time = new FakeTime("2024-03-30T11:00:00.000+02:00");
 
-      const cron = new Cron("0 0 9 * * *", "Europe/Lisbon", 0);
+      const cron = new Cron(() => {}, {
+        when: "0 0 9 * * *",
+        timezone: "Europe/Lisbon",
+        tickerTimeout: 0,
+      });
 
       assertEquals(cron.checkTime(), true); // before DLS
       await time.tickAsync(1000 * 60 * 60 * 23);
@@ -144,106 +166,48 @@ describe("Cron", () => {
   });
 
   describe("work", () => {
-    it("should yield when the cron expression matches", async () => {
+    it("should call job when the cron expression matches", async () => {
       const time = new FakeTime(0);
+      const jobSpy = spy();
 
-      let waitPResolve: Spy;
-      const waitP = new Promise<{ value: AbortSignal }>((resolve) => {
-        waitPResolve = spy(resolve);
+      const cron = new Cron(jobSpy, {
+        when: "0 1 * * * *",
+        timezone: "UTC",
+        tickerTimeout: 0,
       });
 
-      const cron = new Cron("0 1 * * * *", "UTC", 0);
-      cron
-        .start()
-        .next()
-        .then((s) => waitPResolve(s));
-
-      await time.tickAsync(1000 * 59);
-      assertEquals(cron.checkTime(), false);
-
-      await time.tickAsync(1000);
-      assertEquals(cron.checkTime(), true);
-
-      const { value } = await waitP;
-      assertEquals(waitPResolve!.calls.length, 1);
-      assertEquals(value instanceof AbortSignal, true);
-
-      await cron.stop();
-      time.restore();
-    });
-
-    it("should yield when the cron expression matches multiple times", async () => {
-      const time = new FakeTime(0);
-
-      let waitPResolve: Spy;
-      const waitP = new Promise<{ value: AbortSignal }>((resolve) => {
-        waitPResolve = spy(resolve);
-      });
-
-      let waitPResolve2: Spy;
-      const waitP2 = new Promise<{ value: AbortSignal }>((resolve) => {
-        waitPResolve2 = spy(resolve);
-      });
-
-      const cron = new Cron("0 1 * * * *", "UTC", 0);
-      const asyncGen = cron.start();
-
-      asyncGen.next().then((s) => waitPResolve(s));
+      cron.start();
 
       await time.tickAsync(1000 * 60);
-      await waitP;
-
-      assertEquals(waitPResolve!.calls.length, 1);
-
-      asyncGen.next().then((s) => waitPResolve2(s));
       await time.tickAsync(1000 * 60 * 60 * 1);
-      await waitP2;
-
-      assertEquals(waitPResolve!.calls.length, 1);
 
       await cron.stop();
       time.restore();
+
+      assertEquals(jobSpy.calls.length, 2);
     });
 
-    it("should not yield multiple times for the same match", async (done) => {
+    it("should not call job multiple times for the same match", async () => {
       const time = new FakeTime(0);
 
-      let waitPResolve: Spy;
-      const waitP = new Promise<{ value: AbortSignal }>((resolve) => {
-        waitPResolve = spy(resolve);
+      const jobSpy = spy();
+
+      const cron = new Cron(jobSpy, {
+        when: "* 1 * * * *",
+        timezone: "UTC",
+        tickerTimeout: 0,
       });
 
-      let waitPResolve2: Spy;
-      new Promise<{ value: AbortSignal }>((resolve) => {
-        waitPResolve2 = spy(resolve);
-      });
+      cron.start();
 
-      const cron = new Cron("* 1 * * * *", "UTC", 0);
-      const asyncGen = cron.start();
-
-      asyncGen.next().then((s) => waitPResolve(s));
       await time.tickAsync(1000 * 60);
-
-      asyncGen.next().then((s) => waitPResolve(s));
       await time.tickAsync(500);
-      await waitP;
-
-      assertEquals(waitPResolve!.calls.length, 1);
-
-      asyncGen.next().then(async (s) => {
-        waitPResolve(s);
-        waitPResolve2(s);
-
-        assertEquals(waitPResolve!.calls.length, 2);
-        assertEquals(waitPResolve2!.calls.length, 1);
-
-        await cron.stop();
-        time.restore();
-        // @ts-ignore: ts stuff
-        done();
-      });
-
       await time.tickAsync(500);
+
+      await cron.stop();
+      time.restore();
+
+      assertEquals(jobSpy.calls.length, 2);
     });
   });
 });

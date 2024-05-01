@@ -14,22 +14,53 @@ import {
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
+type CronOptions = {
+  when: string;
+  timezone?: string;
+  tickerTimeout?: number;
+};
+
+// deno-lint-ignore no-explicit-any
+const wrapInPromise = <T extends (...args: any) => any>(
+  fn: T,
+): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> => {
+  return (...args: Parameters<T>) => {
+    try {
+      const result = fn(...args);
+      return Promise.resolve(result);
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  };
+};
+
+const workerSymbol = Symbol("workerSymbol");
+
 export class Cron {
   #when: cronParser.CronExpression;
   #abortController: AbortController;
-  #working: boolean;
-  #worker!: AsyncGenerator<AbortSignal, void>;
+  #working = false;
   #lastProcessAt?: number;
   #tickerTimeout = 500;
   #timezone = "UTC";
+  #tickerSetTimeout?: number;
+  #job: (abortSignal: AbortSignal) => Promise<void>;
 
-  constructor(when: string, timezone?: string, tickerTimeout?: number) {
-    this.#timezone = timezone ?? this.#timezone;
-    this.#when = cronParser.parseExpression(when, { tz: this.#timezone });
-    this.#working = false;
+  [workerSymbol]?: Promise<void>;
+
+  constructor(
+    job: (abortSignal: AbortSignal) => Promise<void> | void,
+    options: CronOptions,
+  ) {
+    this.#timezone = options.timezone ?? this.#timezone;
+    this.#when = cronParser.parseExpression(options.when, {
+      tz: this.#timezone,
+    });
 
     this.#abortController = new AbortController();
-    this.#tickerTimeout = tickerTimeout ?? this.#tickerTimeout;
+    this.#tickerTimeout = options.tickerTimeout ?? this.#tickerTimeout;
+
+    this.#job = wrapInPromise(job);
 
     dayjs.tz.setDefault(this.#timezone);
   }
@@ -38,23 +69,22 @@ export class Cron {
     return this.#working;
   }
 
-  start(): AsyncGenerator<AbortSignal, void> {
-    if (this.#working) return this.#worker;
+  start() {
+    if (this.#working) return;
 
     this.#working = true;
-    this.#worker = this.#work();
-
-    return this.#worker;
+    this[workerSymbol] = this.#ticker();
   }
 
   async stop() {
     if (!this.#working) return;
 
     this.#working = false;
-
     this.#abortController.abort();
 
-    await this.#worker.return();
+    clearTimeout(this.#tickerSetTimeout);
+
+    await this[workerSymbol];
   }
 
   nextAt(): string {
@@ -81,41 +111,34 @@ export class Cron {
     );
   }
 
-  async *#ticker() {
-    yield dayjs().tz().valueOf();
+  async #ticker(): Promise<void> {
+    const at = dayjs().tz().valueOf();
+    const seconds = Math.floor(at / 1000);
+    const isTime = this.#checkTime(seconds * 1000);
+    const notMatchesLastTime = !this.#lastProcessAt ||
+      seconds !== this.#lastProcessAt;
 
-    while (true) {
+    if (isTime && notMatchesLastTime) {
+      this.#lastProcessAt = seconds;
+
       try {
-        await delay(this.#tickerTimeout, {
-          signal: this.#abortController.signal,
-        });
-
-        yield dayjs().tz().valueOf();
+        await this.#job(this.#abortController.signal);
       } catch {
-        return;
-      }
-    }
-  }
-
-  async *#work() {
-    for await (const at of this.#ticker()) {
-      const seconds = Math.floor(at / 1000);
-      const isTime = this.#checkTime(seconds * 1000);
-      const notMatchesLastTime = !this.#lastProcessAt ||
-        seconds !== this.#lastProcessAt;
-
-      if (isTime && notMatchesLastTime) {
-        this.#lastProcessAt = seconds;
-
-        yield this.#abortController.signal;
-      }
-
-      if (this.#abortController.signal.aborted) {
-        return;
+        // ignore errors from job.
+        // we might want, in the future, to add retries
       }
     }
 
-    if (this.#working) this.#working = false;
+    if (this.#abortController.signal.aborted) {
+      return;
+    }
+
+    await delay(this.#tickerTimeout, { signal: this.#abortController.signal })
+      .catch(() => {
+        // ignore delay errors, most likelly abort error
+      });
+
+    return this.#ticker();
   }
 }
 
