@@ -1,6 +1,6 @@
 {
   "name": "@m4rc3l05/cron",
-  "version": "0.1.5",
+  "version": "1.0.0",
   "exports": "./src/mod.ts",
   "tasks": {
     "dev:boot": "git config core.hooksPath ./.bin/git-hooks/ && deno task deps",
