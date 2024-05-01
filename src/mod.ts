@@ -1,4 +1,15 @@
-import { cronParser, dayjs, delay, timezone, utc } from "./deps.ts";
+import {
+  cronParser,
+  dayjs,
+  type DayOfTheMonthRange,
+  type DayOfTheWeekRange,
+  delay,
+  type HourRange,
+  type MonthRange,
+  type SixtyRange,
+  timezone,
+  utc,
+} from "./deps.ts";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -60,19 +71,13 @@ export class Cron {
     const now = dayjs(at).tz().set("milliseconds", 0);
 
     return (
-      // @ts-ignore: ts stuff
-      this.#when.fields.second.includes(now.second()) &&
-      // @ts-ignore: ts stuff
-      this.#when.fields.minute.includes(now.minute()) &&
-      // @ts-ignore: ts stuff
-      this.#when.fields.hour.includes(now.hour()) &&
-      // @ts-ignore: ts stuff
-      this.#when.fields.dayOfMonth.includes(now.date()) &&
-      // @ts-ignore: ts stuff
+      this.#when.fields.second.includes(now.second() as SixtyRange) &&
+      this.#when.fields.minute.includes(now.minute() as SixtyRange) &&
+      this.#when.fields.hour.includes(now.hour() as HourRange) &&
+      this.#when.fields.dayOfMonth.includes(now.date() as DayOfTheMonthRange) &&
       // We must add 1 to the month value as it starts from 0 and the cron starts from 1.
-      this.#when.fields.month.includes(now.month() + 1) &&
-      // @ts-ignore: ts stuff
-      this.#when.fields.dayOfWeek.includes(now.day())
+      this.#when.fields.month.includes((now.month() + 1) as MonthRange) &&
+      this.#when.fields.dayOfWeek.includes(now.day() as DayOfTheWeekRange)
     );
   }
 

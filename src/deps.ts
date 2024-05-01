@@ -1,4 +1,11 @@
-export { default as cronParser } from "npm:cron-parser@4.9.0";
+export {
+  type DayOfTheMonthRange,
+  type DayOfTheWeekRange,
+  default as cronParser,
+  type HourRange,
+  type MonthRange,
+  type SixtyRange,
+} from "npm:cron-parser@4.9.0";
 export { default as dayjs } from "npm:dayjs@1.11.10";
 export { default as utc } from "npm:dayjs@1.11.10/plugin/utc.js";
 export { default as timezone } from "npm:dayjs@1.11.10/plugin/timezone.js";
