@@ -28,8 +28,22 @@ describe("Cron", () => {
   describe("start()", () => {
     it("should start the cron", async () => {
       const cron = new Cron(() => {}, { when: "* * * * * *" });
+
       cron.start();
+
       assertEquals(cron.working, true);
+
+      await cron.stop();
+    });
+
+    it("should return the same work promise for multiple start calls", async () => {
+      const cron = new Cron(() => {}, { when: "* * * * * *" });
+
+      const w1 = cron.start();
+      const w2 = cron.start();
+
+      assertEquals(w1, w2);
+
       await cron.stop();
     });
   });
@@ -38,8 +52,11 @@ describe("Cron", () => {
     it("should stop the cron", async () => {
       const cron = new Cron(() => {}, { when: "* * * * * *" });
       cron.start();
+
       assertEquals(cron.working, true);
+
       await cron.stop();
+
       assertEquals(cron.working, false);
     });
   });
@@ -208,6 +225,31 @@ describe("Cron", () => {
       time.restore();
 
       assertEquals(jobSpy.calls.length, 2);
+    });
+
+    it("should not tick if it was stoped before", async () => {
+      const time = new FakeTime(0);
+
+      const jobSpy = spy();
+
+      const cron = new Cron(jobSpy, {
+        when: "* 1 * * * *",
+        timezone: "UTC",
+        tickerTimeout: 0,
+      });
+
+      cron.start();
+      await cron.stop();
+      cron.start();
+
+      await time.tickAsync(1000 * 60);
+      await time.tickAsync(500);
+      await time.tickAsync(500);
+
+      await cron.stop();
+      time.restore();
+
+      assertEquals(jobSpy.calls.length, 0);
     });
   });
 });

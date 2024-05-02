@@ -23,27 +23,37 @@ type CronOptions = {
 // deno-lint-ignore no-explicit-any
 const wrapInPromise = <T extends (...args: any) => any>(
   fn: T,
-): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> => {
-  return (...args: Parameters<T>) => {
-    try {
-      const result = fn(...args);
-      return Promise.resolve(result);
-    } catch (error) {
-      return Promise.reject(error);
-    }
-  };
+): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> =>
+(...args: Parameters<T>) => {
+  try {
+    const result = fn(...args);
+    return Promise.resolve(result);
+  } catch (error) {
+    return Promise.reject(error);
+  }
 };
+
+async function* tick(ms: number, signal: AbortSignal) {
+  if (signal.aborted) return;
+
+  yield Date.now();
+
+  while (!signal.aborted) {
+    await delay(ms, { signal }).catch(() => {
+      // ignore delay errors, most likelly abort error
+    });
+
+    yield Date.now();
+  }
+}
 
 const workerSymbol = Symbol("workerSymbol");
 
 export class Cron {
   #when: cronParser.CronExpression;
   #abortController: AbortController;
-  #working = false;
-  #lastProcessAt?: number;
   #tickerTimeout = 500;
   #timezone = "UTC";
-  #tickerSetTimeout?: number;
   #job: (abortSignal: AbortSignal) => Promise<void>;
 
   [workerSymbol]?: Promise<void>;
@@ -66,25 +76,28 @@ export class Cron {
   }
 
   get working(): boolean {
-    return this.#working;
+    return this[workerSymbol] instanceof Promise;
   }
 
-  start() {
-    if (this.#working) return;
+  start(): Promise<void> {
+    if (!this[workerSymbol]) {
+      this[workerSymbol] = this.#worker();
+    }
 
-    this.#working = true;
-    this[workerSymbol] = this.#ticker();
+    return this[workerSymbol];
   }
 
   async stop() {
-    if (!this.#working) return;
+    if (!this[workerSymbol]) {
+      return;
+    }
 
-    this.#working = false;
+    const workerP = this[workerSymbol];
+    this[workerSymbol] = undefined;
+
     this.#abortController.abort();
 
-    clearTimeout(this.#tickerSetTimeout);
-
-    await this[workerSymbol];
+    await workerP;
   }
 
   nextAt(): string {
@@ -94,10 +107,8 @@ export class Cron {
   }
 
   checkTime(at?: number): boolean {
-    return this.#checkTime(at ?? dayjs().tz().unix() * 1000);
-  }
+    at ??= dayjs().tz().unix() * 1000;
 
-  #checkTime(at: number) {
     const now = dayjs(at).tz().set("milliseconds", 0);
 
     return (
@@ -111,34 +122,26 @@ export class Cron {
     );
   }
 
-  async #ticker(): Promise<void> {
-    const at = dayjs().tz().valueOf();
-    const seconds = Math.floor(at / 1000);
-    const isTime = this.#checkTime(seconds * 1000);
-    const notMatchesLastTime = !this.#lastProcessAt ||
-      seconds !== this.#lastProcessAt;
+  async #worker(): Promise<void> {
+    const ticker = tick(this.#tickerTimeout, this.#abortController.signal);
+    let lastProcessAt: number | undefined;
 
-    if (isTime && notMatchesLastTime) {
-      this.#lastProcessAt = seconds;
+    for await (const _ of ticker) {
+      const at = dayjs().tz().valueOf();
+      const seconds = Math.floor(at / 1000);
+      const isTime = this.checkTime(seconds * 1000);
+      const notMatchesLastTime = !lastProcessAt ||
+        seconds !== lastProcessAt;
 
-      try {
-        await this.#job(this.#abortController.signal);
-      } catch {
-        // ignore errors from job.
-        // we might want, in the future, to add retries
+      if (isTime && notMatchesLastTime) {
+        lastProcessAt = seconds;
+
+        await this.#job(this.#abortController.signal).catch(() => {
+          // ignore errors from job.
+          // we might want, in the future, to add retries
+        });
       }
     }
-
-    if (this.#abortController.signal.aborted) {
-      return;
-    }
-
-    await delay(this.#tickerTimeout, { signal: this.#abortController.signal })
-      .catch(() => {
-        // ignore delay errors, most likelly abort error
-      });
-
-    return this.#ticker();
   }
 }
 
