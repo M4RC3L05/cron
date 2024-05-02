@@ -79,6 +79,10 @@ export class Cron {
     return this[workerSymbol] instanceof Promise;
   }
 
+  get signal(): AbortSignal {
+    return this.#abortController.signal;
+  }
+
   start(): Promise<void> {
     if (!this[workerSymbol]) {
       this[workerSymbol] = this.#worker();

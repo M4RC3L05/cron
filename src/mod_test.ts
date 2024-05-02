@@ -59,6 +59,24 @@ describe("Cron", () => {
 
       assertEquals(cron.working, false);
     });
+
+    it("should stop only once for multiple calls", async () => {
+      const abortSignalSpy = spy();
+      const cron = new Cron(() => {}, { when: "* * * * * *" });
+      cron.signal.addEventListener("abort", abortSignalSpy);
+
+      cron.start();
+
+      assertEquals(cron.working, true);
+
+      const p1 = cron.stop();
+      const p2 = cron.stop();
+
+      await Promise.all([p1, p2]);
+
+      assertEquals(cron.working, false);
+      assertEquals(abortSignalSpy.calls.length, 1);
+    });
   });
 
   describe("checkTime()", () => {
