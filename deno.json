@@ -3,7 +3,6 @@
   "version": "1.1.0",
   "exports": "./src/mod.ts",
   "tasks": {
-    "dev:boot": "git config core.hooksPath ./.bin/git-hooks/ && deno task deps",
     "test": "TZ=UTC deno test",
     "deps:lock": "deno cache --lock=deno.lock --lock-write src/*.ts",
     "deps": "deno cache --reload --lock=deno.lock src/*.ts"
