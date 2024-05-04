@@ -201,6 +201,62 @@ describe("Cron", () => {
   });
 
   describe("work", () => {
+    it("should not cause the cron to fail if job fails", async () => {
+      const time = new FakeTime(0);
+      const jobSpy = spy(() => {
+        throw new Error("foo");
+      });
+
+      const cron = new Cron(jobSpy, {
+        when: "0 1 * * * *",
+        timezone: "UTC",
+        tickerTimeout: 0,
+      });
+
+      cron.start();
+
+      await time.tickAsync(1000 * 60);
+      await time.tickAsync(1000 * 60 * 60 * 1);
+
+      await cron.stop();
+      time.restore();
+
+      assertEquals(jobSpy.calls.length, 2);
+    });
+
+    it("should not cause the cron to fail if async job fails", async () => {
+      const time = new FakeTime(0);
+      const p: Promise<void>[] = [];
+      const jobSpy = spy(async () => {
+        const pp = new Promise<void>((_, reject) => {
+          setTimeout(() => reject(new Error("foo")));
+        });
+
+        p.push(pp);
+
+        await pp;
+      });
+
+      const cron = new Cron(jobSpy, {
+        when: "0 1 * * * *",
+        timezone: "UTC",
+        tickerTimeout: 0,
+      });
+
+      cron.start();
+
+      await time.tickAsync(1000 * 60);
+      await time.tickAsync(100);
+      await time.tickAsync(1000 * 60 * 60 * 1);
+      await time.tickAsync(100);
+
+      await Promise.allSettled(p);
+      await cron.stop();
+      time.restore();
+
+      assertEquals(jobSpy.calls.length, 2);
+    });
+
     it("should call job when the cron expression matches", async () => {
       const time = new FakeTime(0);
       const jobSpy = spy();
